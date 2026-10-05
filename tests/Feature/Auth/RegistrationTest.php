@@ -21,14 +21,16 @@ class RegistrationTest extends TestCase
     {
         $response = Volt::test('auth.register')
             ->set('name', 'Test User')
+            ->set('username', 'test_user')
             ->set('email', 'test@example.com')
             ->set('password', 'password')
             ->set('password_confirmation', 'password')
+            ->set('role', 'pasien')
             ->call('register');
 
         $response
             ->assertHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('pasien.dashboard', absolute: false));
 
         $this->assertAuthenticated();
     }
