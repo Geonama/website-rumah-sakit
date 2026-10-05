@@ -23,13 +23,13 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         $response = LivewireVolt::test('auth.login')
-            ->set('email', $user->email)
+            ->set('login', $user->email)
             ->set('password', 'password')
             ->call('login');
 
         $response
             ->assertHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('pasien.dashboard', absolute: false));
 
         $this->assertAuthenticated();
     }
@@ -38,11 +38,12 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'wrong-password',
-        ]);
+        $response = LivewireVolt::test('auth.login')
+            ->set('login', $user->email)
+            ->set('password', 'wrong-password')
+            ->call('login');
 
+        $response->assertHasErrors(['login']);
         $this->assertGuest();
     }
 

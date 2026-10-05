@@ -11,8 +11,8 @@ use Livewire\Attributes\Validate;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.auth')] class extends Component {
-    #[Validate('required|string|email')]
-    public string $email = '';
+    #[Validate('required|string')]
+    public string $login = '';
 
     #[Validate('required|string')]
     public string $password = '';
@@ -28,18 +28,22 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        $loginField = filter_var($this->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        if (! Auth::attempt([$loginField => $this->login, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'login' => 'Username/email atau password tidak sesuai.',
             ]);
         }
 
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $targetRoute = auth()->user()->isAdmin() ? 'admin.dashboard' : 'pasien.dashboard';
+
+        $this->redirectIntended(default: route($targetRoute, absolute: false), navigate: true);
     }
 
     /**
@@ -56,7 +60,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => __('auth.throttle', [
+            'login' => __('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
@@ -68,49 +72,51 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate(Str::lower($this->login).'|'.request()->ip());
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header title="Log in to your account" description="Enter your email and password below to log in" />
+<div class="relative overflow-hidden rounded-3xl border border-sky-100 bg-white/95 p-8 shadow-2xl shadow-sky-200/60 backdrop-blur dark:border-sky-800/60 dark:bg-zinc-900/95 dark:shadow-sky-950/40">
+    <div class="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-cyan-200/40 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-sky-300/30 blur-3xl"></div>
 
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
+    <div class="relative flex flex-col gap-6">
+        <div class="space-y-2 text-center">
+            <p class="text-xs font-semibold tracking-[0.35em] text-sky-600">RSUD WELASASIH • PROV JAWA BARAT</p>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">Portal Layanan Rumah Sakit Bintang 5</h1>
+            <p class="text-sm text-zinc-600 dark:text-zinc-300">Masuk sebagai Admin atau Pasien untuk mengelola layanan kesehatan profesional.</p>
+        </div>
 
-    <form wire:submit="login" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <flux:input wire:model="email" label="{{ __('Email address') }}" type="email" name="email" required autofocus autocomplete="email" placeholder="email@example.com" />
+        <x-auth-session-status class="rounded-xl bg-emerald-50 px-4 py-2 text-center text-sm text-emerald-700" :status="session('status')" />
 
-        <!-- Password -->
-        <div class="relative">
+        <form wire:submit="login" class="flex flex-col gap-5">
+            <flux:input wire:model="login" label="Username atau Email" type="text" name="login" required autofocus autocomplete="username" placeholder="Contoh: Admin atau email@domain.com" />
+
             <flux:input
                 wire:model="password"
-                label="{{ __('Password') }}"
+                label="Password"
                 type="password"
                 name="password"
                 required
                 autocomplete="current-password"
-                placeholder="Password"
+                placeholder="Masukkan password"
             />
 
-            @if (Route::has('password.request'))
-                <x-text-link class="absolute right-0 top-0" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </x-text-link>
-            @endif
-        </div>
+            <div class="flex items-center justify-between text-sm">
+                <flux:checkbox wire:model="remember" label="Ingat saya" />
+                @if (Route::has('password.request'))
+                    <x-text-link href="{{ route('password.request') }}">Lupa password?</x-text-link>
+                @endif
+            </div>
 
-        <!-- Remember Me -->
-        <flux:checkbox wire:model="remember" label="{{ __('Remember me') }}" />
+            <flux:button variant="primary" type="submit" class="w-full rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 text-base font-semibold text-white">
+                Masuk ke Dashboard
+            </flux:button>
+        </form>
 
-        <div class="flex items-center justify-end">
-            <flux:button variant="primary" type="submit" class="w-full">{{ __('Log in') }}</flux:button>
-        </div>
-    </form>
-
-    <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        Don't have an account?
-        <x-text-link href="{{ route('register') }}">Sign up</x-text-link>
+        <p class="text-center text-sm text-zinc-600 dark:text-zinc-300">
+            Belum punya akun pasien?
+            <x-text-link href="{{ route('register') }}">Daftar sekarang</x-text-link>
+        </p>
     </div>
 </div>
